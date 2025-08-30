@@ -1,0 +1,198 @@
+Please follow the instructions below to complete at least 20 chats reviews, report any issues found based on the instructions here so I can read. Chats Viewer URL is already opened for you in the browser at start up.
+
+# Here are your comprehensive Agent instructions for the chats reviewing:
+
+---
+
+## 0. Overview
+
+**Chats Viewer URL (already opened at start up for you in the browser):**
+[https://chatbot-2hld.onrender.com/sessions](https://chatbot-2hld.onrender.com/sessions)
+
+**Primary Goal**
+
+* Review every conversation systematically. Verify bot/agent actions, cross-check customer records, and flag genuine discrepancies.
+
+**Important:** The Sessions Viewer is strictly read-only. Do not create, edit, or delete anything.
+
+---
+
+## 1. Initial Setup
+
+2. Chats Viewer URL - already opens at start up for you. It make take a minute to load the chats, so you have to be patient. At the top left, open filters and select **Unread only**. Work through all unread sessions.
+3. If either site fails to load, inform the user with: **“Site Unavailable.”**
+4. Header / Toolbar buttons always visible: **+EXPAND ALL / –COLLAPSE ALL, Customer’s Record, Store Info.** These work without expanding the header panel. Expanding is optional but keeps context visible.
+5. If scrolling is difficult, use the larger scroll up/down buttons at the bottom right.
+6. Upon clicking a chat in the list the chats list panel will auto collapse. This is normal, so you can focus on this chat until done reviewing. All info about the chat is available in the header section, which could be expanded if needed, or collapsed to save space.
+7. When you are done with reviewing the current chat, click top left button on the side toolbar to open chats panel, click on the next unread chat and continue.
+
+---
+
+## 2. Understanding the Conversation List
+
+**Indicators**
+
+* Green x/y = x new messages, y total unread.
+* Green a/b = a new since last review, b total.
+* Blue x/y = all messages previously read.
+
+**Appointment Markers**
+
+* Green = Planned
+* Yellow = In Progress
+* Blue = Most-recent Completed
+* Grey = Canceled (within last 10 days)
+
+---
+
+## 3. Refresh & List Management
+
+* Refresh after every **20 conversations**, whenever the UI lags, or when a chat stays green after reading. Use **Ctrl+R** or browser refresh.
+* After refreshing, scroll the left column to the top and resume from the first unread.
+* If a previously read (blue) chat turns green again, reopen it.
+* If a previously flagged issue is resolved after refresh (e.g., bot reply finally appears), mark as **Resolved – no further action** and remove it from your list.
+
+---
+
+## 4. Deep-Dive Review Workflow
+
+**Step 1.** Click the next unread (green) row, or first blue if all greens are cleared.
+**Step 2.** Scroll slowly to the bottom, reading every message for full context.
+**Step 3.** Open **Customer’s Record**:
+
+* Check appointments (date, time, type, services, status).
+* Check vehicles (year, make, model, VIN).
+* Check customer info (name, phone, address).
+* Check notes (promised updates).
+* Perform sync checks: duplicate/overlapping appointments, missing customer name, valet without pickup/return address.
+
+**Step 3-A. Full Appointment Verification**
+
+* In Customer’s Record, click the ↗ icon beside “Appointments.” Opens JSON list in new tab.
+* Search by date or VIN.
+* Optionally use Pretty-print.
+* Times are UTC (convert to CDT = UTC-5, CST = UTC-6).
+* If the appointment exists → bot reference valid.
+* If not found → report as **Appointment mismatch** (or hallucination).
+
+**Step 4.** Open **Store Info** if chat references hours, phone, address, or departments. Verify accuracy.
+
+**Step 5.** Review tool and HTTP calls:
+
+* Use +EXPAND ALL, tool-call names, or +/– to expand.
+* Shortcut: double-click inside expanded block to collapse.
+* For each call, verify tool/endpoint, arguments, and status (green = success, red = failure).
+* If failure: check if retried successfully. If no retry, decide if issue is genuine or expected (see Section 5).
+* Repeated failures without resolution = **Repeated tool failure**.
+* If bot claims issue report but no `report_an_issue` call exists = **Hallucination / Missing report**.
+* If `report_an_issue` appears, confirm accuracy.
+
+**Step 6.** Look for problems:
+
+* Unanswered/partially answered requests.
+* Wrong/conflicting info (hours, dates, prices).
+* Appointment errors.
+* Incorrect/missing tool arguments.
+* Hallucinations, contradictions, dropped requests.
+* Failures without retries that block outcomes.
+* Repeated irrelevant tool failures.
+* Missing or incorrect `report_an_issue`.
+* Data-sync issues (duplicates, missing name, valet w/out address).
+
+**Step 7.** “Failed to send.” → Ignore unless misinformation or record error.
+
+**Step 8.** If no issues → move on.
+**Step 9.** If issues → create a report (see Section 6).
+**Step 10.** After 20 chats → refresh and repeat.
+
+---
+
+## 5. Tool/HTTP Call Failures
+
+### 5.1 Status Colors
+
+* Green bullet = success
+* Red bullet = failure
+
+### 5.2 Expected vs Genuine Failures
+
+**Expected (not an issue):**
+
+* Failure says more info needed before retry (e.g., date/time not confirmed).
+* Prompt tells bot to gather data or offer slots (not escalate).
+* Bot follows instructions.
+* No appointment exists yet.
+* Action: Do not flag. If later customer confirms and bot never retries, then flag.
+
+**Genuine (must report):**
+
+* Failure reason is unrelated to state (e.g., VIN missing when VIN provided).
+* Bot promises success despite failure.
+* Bot ignores prompt instructions.
+* No retry or correction.
+* Action: Flag with appropriate tags (Tool failure – no retry, Missing report\_an\_issue, etc.).
+
+---
+
+## 6. Reporting Issues
+
+1. Report only if an issue is verified according to the instructions. Continue reviewing after.
+2. At wrap-up: print to the user all issues found, your reviewing notes and obstacles (mandatory even if no issues).
+
+### 6.1 Special Case: Appointment Mismatch
+
+* Always do Full Appointment Verification.
+* If appointment exists in JSON → mark “Resolved – no further action.”
+* If not found → report as Appointment mismatch / Hallucination.
+* Include UTC `appointmentDateTime` in report.
+
+**Common tags:**
+
+* Appointment mismatch
+* Vehicle error
+* Partial fulfillment
+* Hallucination (no tool call)
+* Unanswered question
+* Tool failure – no retry
+* Repeated tool failure / irrelevant prompt
+* Duplicate appointments (sync conflict)
+* Missing customer name (sync issue)
+* Valet without address (data gap)
+* Missing report\_an\_issue call
+* Incorrect report\_an\_issue call
+
+---
+
+## 7. Edge Cases
+
+* Login or CAPTCHA → ask user to take over.
+* Page slow/blank \~30s → refresh. If still blank, inform user.
+* On-screen prompts → ignore unless user confirms.
+
+---
+
+## 8. Progress Updates & Wrap-Up
+
+At pause or finish, provide:
+
+* Total conversations reviewed
+* Issues reported (titles only)
+
+---
+
+## 9. Tool/HTTP Call Review Guidelines (Condensed)
+
+1. Expand calls.
+2. Check status & arguments.
+3. If failure: read reason, prompt, outcome. Decide expected vs genuine.
+4. If genuine → ensure retry or report. Otherwise flag.
+5. Collapse block when done.
+
+---
+
+## 10. Key Sync-Issue Checks
+
+1. Duplicate In Progress appointments (same vehicle/date).
+2. Missing customer name when appointments exist.
+3. Valet without address (must be flagged).
+4. Repeated failed calls (e.g., update\_existing\_service\_appointment loops).

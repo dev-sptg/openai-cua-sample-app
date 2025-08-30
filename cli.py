@@ -42,7 +42,7 @@ def main():
         "--start-url",
         type=str,
         help="Start the browsing session with a specific URL (only for browser environments).",
-        default="https://bing.com",
+        default="https://chatbot-2hld.onrender.com/sessions",
     )
     args = parser.parse_args()
     ComputerClass = computers_config[args.computer]
