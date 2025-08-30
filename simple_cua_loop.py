@@ -38,7 +38,9 @@ def handle_item(item, computer: Computer):
             "acknowledged_safety_checks": pending_checks,
             "output": {
                 "type": "input_image",
-                "image_url": f"data:image/png;base64,{screenshot_base64}",
+                # Provide the screenshot directly as base64 so the model can
+                # reconstruct the image without relying on an external URL.
+                "image_base64": screenshot_base64,
             },
         }
 
