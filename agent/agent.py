@@ -101,7 +101,9 @@ class Agent:
                 "acknowledged_safety_checks": pending_checks,
                 "output": {
                     "type": "input_image",
-                    "image_url": f"data:image/png;base64,{screenshot_base64}",
+                    # Send raw base64 rather than a data URL to comply with the
+                    # Responses API expectations for image input.
+                    "image_base64": screenshot_base64,
                 },
             }
 
