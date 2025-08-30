@@ -7,6 +7,7 @@ from PIL import Image
 from io import BytesIO
 import io
 from urllib.parse import urlparse
+from typing import List, Dict, Any
 
 load_dotenv(override=True)
 
@@ -46,6 +47,50 @@ def sanitize_message(msg: dict) -> dict:
             return sanitized
     return msg
 
+
+# Output-only item types that must never be sent back in the next request.
+MODEL_ONLY_TYPES = {"reasoning", "output_text"}
+
+
+def strip_model_only_items(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Remove model-only items so we never send them back in `input`."""
+    clean: List[Dict[str, Any]] = []
+    for it in items:
+        if not isinstance(it, dict):
+            continue
+        t = it.get("type")
+        if t in MODEL_ONLY_TYPES:
+            continue
+        clean.append(it)
+    return clean
+
+
+def coerce_input_items(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """
+    Apply any existing message sanitization AND strip model-only items.
+    Keeps only dicts and drops Nones.
+    """
+    out: List[Dict[str, Any]] = []
+    for it in items:
+        if it is None or not isinstance(it, dict):
+            continue
+        sanitized = sanitize_message(it)
+        if sanitized is None:
+            continue
+        out.append(sanitized)
+    return strip_model_only_items(out)
+
+
+def is_error_response(resp: dict) -> bool:
+    return isinstance(resp, dict) and "output" not in resp and "error" in resp
+
+
+def summarize_error(resp: dict) -> str:
+    err = (resp or {}).get("error") or {}
+    msg = err.get("message") or str(err)
+    typ = err.get("type")
+    code = err.get("code")
+    return f"{typ or 'error'}: {msg}" + (f" (code={code})" if code else "")
 
 def create_response(**kwargs):
     url = "https://api.openai.com/v1/responses"
