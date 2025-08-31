@@ -82,9 +82,11 @@ class Agent:
             method = getattr(self.computer, action_type)
             method(**action_args)
 
-            screenshot_base64 = self.computer.screenshot()
+            screenshot_item = self.computer.screenshot()
             if self.show_images:
-                show_image(screenshot_base64)
+                url = screenshot_item.get("image_url", "")
+                if url.startswith("data:image"):
+                    show_image(url.split(",", 1)[1])
 
             # if user doesn't ack all safety checks exit with error
             pending_checks = item.get("pending_safety_checks", [])
@@ -99,12 +101,7 @@ class Agent:
                 "type": "computer_call_output",
                 "call_id": item["call_id"],
                 "acknowledged_safety_checks": pending_checks,
-                "output": {
-                    "type": "input_image",
-                    # Send raw base64 rather than a data URL to comply with the
-                    # Responses API expectations for image input.
-                    "image_base64": screenshot_base64,
-                },
+                "output": {"screenshot": True},
             }
 
             # additional URL safety checks for browser environments
@@ -113,7 +110,7 @@ class Agent:
                 check_blocklisted_url(current_url)
                 call_output["output"]["current_url"] = current_url
 
-            return [call_output]
+            return [call_output, screenshot_item]
         return []
 
     def run_full_turn(
@@ -126,13 +123,19 @@ class Agent:
 
         # keep looping until we get a final response
         while new_items[-1].get("role") != "assistant" if new_items else True:
-            sanitized_items = coerce_input_items(input_items + new_items)
-            self.debug_print([sanitize_message(msg) for msg in sanitized_items])
+            sanitized = coerce_input_items(input_items + new_items)
+            if self.debug:
+                print("[Sending items]")
+                for i, it in enumerate(sanitized):
+                    t = it.get("type")
+                    keys = list(it.keys())
+                    print(i, t, "keys=", keys)
+            self.debug_print([sanitize_message(msg) for msg in sanitized])
 
             try:
                 response = create_response(
                     model=self.model,
-                    input=sanitized_items,
+                    input=sanitized,
                     tools=self.tools,
                     truncation="auto",
                 )
