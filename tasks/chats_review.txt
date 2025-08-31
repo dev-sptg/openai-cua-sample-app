@@ -1,4 +1,5 @@
 Please follow the instructions below to complete at least 20 chats reviews, report any issues found based on the instructions here so I can read. You MUST keep the Chat Sessions Viewer URL open and never close (it is opened for you at start up automatically).
+For each action you take, you MUST also output a brief natural language explanation as a message before the computer_call.
 
 # Here are your comprehensive Agent instructions for the chat sessions reviewing:
 

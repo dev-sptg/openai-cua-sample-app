@@ -48,22 +48,41 @@ def sanitize_message(msg: dict) -> dict:
 
 
 def create_response(**kwargs):
-    url = "https://api.openai.com/v1/responses"
+    """
+    Thin wrapper around Responses API with:
+      - reasoning summaries enabled (summary='auto')
+      - defensive JSON handling for non-JSON upstream errors
+    """
+    url = os.getenv("OPENAI_RESPONSES_URL", "https://api.openai.com/v1/responses")
     headers = {
         "Authorization": f"Bearer {os.getenv('OPENAI_API_KEY')}",
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
     }
-
     openai_org = os.getenv("OPENAI_ORG")
     if openai_org:
-        headers["Openai-Organization"] = openai_org
+        headers["OpenAI-Organization"] = openai_org  # correct casing
 
-    response = requests.post(url, headers=headers, json=kwargs)
+    # Opt-in to reasoning summaries; allow env override
+    reasoning_effort = os.getenv("REASONING_EFFORT", "medium")
+    reasoning_summary = os.getenv("REASONING_SUMMARY", "auto")
+    payload = {
+        **kwargs,
+        "reasoning": {"effort": reasoning_effort, "summary": reasoning_summary},
+    }
 
-    if response.status_code != 200:
-        print(f"Error: {response.status_code} {response.text}")
+    resp = requests.post(url, headers=headers, json=payload, timeout=120)
 
-    return response.json()
+    # Non-JSON responses (e.g., proxies returning HTML) → readable error
+    try:
+        data = resp.json()
+    except Exception:
+        text = (resp.text or "")[:800]
+        raise RuntimeError(f"API {resp.status_code} returned non-JSON response:\n{text}")
+
+    if resp.status_code != 200:
+        raise RuntimeError(f"API error {resp.status_code}: {json.dumps(data)[:800]}")
+
+    return data
 
 
 def check_blocklisted_url(url: str) -> None:
