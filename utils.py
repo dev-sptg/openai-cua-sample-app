@@ -38,23 +38,12 @@ def calculate_image_dimensions(base_64_image):
 
 
 def sanitize_message(msg: dict) -> dict:
-    """Return a copy of the message with large image payloads omitted.
-
-    This is useful for debug logging so that base64-encoded screenshots don't
-    overwhelm the console. The structure of the message is preserved, only the
-    image data is replaced with a placeholder string.
-    """
-
+    """Return a copy of the message with image_url omitted for computer_call_output messages."""
     if msg.get("type") == "computer_call_output":
         output = msg.get("output", {})
         if isinstance(output, dict):
             sanitized = msg.copy()
-            new_output = dict(output)
-            if "image_url" in new_output:
-                new_output["image_url"] = "[omitted]"
-            if "image_base64" in new_output:
-                new_output["image_base64"] = "[omitted]"
-            sanitized["output"] = new_output
+            sanitized["output"] = {**output, "image_url": "[omitted]"}
             return sanitized
     return msg
 
@@ -77,18 +66,18 @@ def strip_model_only_items(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
 
 
 def coerce_input_items(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    """Prepare messages for the API request.
-
-    Drops non-dict items, filters out model-only item types and otherwise keeps
-    the messages unchanged so that fields like image_base64 remain intact for
-    the model to consume.
     """
-
+    Apply any existing message sanitization AND strip model-only items.
+    Keeps only dicts and drops Nones.
+    """
     out: List[Dict[str, Any]] = []
     for it in items:
         if it is None or not isinstance(it, dict):
             continue
-        out.append(it)
+        sanitized = sanitize_message(it)
+        if sanitized is None:
+            continue
+        out.append(sanitized)
     return strip_model_only_items(out)
 
 
