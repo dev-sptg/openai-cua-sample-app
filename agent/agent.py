@@ -1,3 +1,5 @@
+from collections import deque
+
 from computers import Computer
 from utils import (
     create_response,
@@ -32,6 +34,9 @@ class Agent:
         self.show_images = True
         self.acknowledge_safety_check_callback = acknowledge_safety_check_callback
 
+        # buffer to print "why" next to the next action
+        self._reason_queue: deque[str] = deque(maxlen=16)
+
         if computer:
             dimensions = computer.get_dimensions()
             self.tools += [
@@ -46,6 +51,19 @@ class Agent:
     def debug_print(self, *args):
         if self.debug:
             pp(*args)
+
+    def _push_reasoning(self, item: dict) -> None:
+        """Extract & buffer reasoning summary, print it."""
+        summary = item.get("summary") or []
+        texts = [s.get("text") for s in summary
+                 if isinstance(s, dict) and s.get("type") == "summary_text" and s.get("text")]
+        reason = (texts[0].strip() if texts else f"(reasoning id {item.get('id','?')})")
+        if self.print_steps:
+            print(f"[Reasoning] {reason}")
+        self._reason_queue.append(reason)
+
+    def _pop_reason_for_action(self) -> str:
+        return self._reason_queue.popleft() if self._reason_queue else ""
 
     def handle_item(self, item):
         """Handle each item; may cause a computer action + screenshot."""
@@ -69,12 +87,20 @@ class Agent:
                 }
             ]
 
+        if item["type"] == "reasoning":
+            # Print and queue the reasoning, then continue to wait for the call
+            self._push_reasoning(item)
+            return []
+
         if item["type"] == "computer_call":
             action = item["action"]
             action_type = action["type"]
             action_args = {k: v for k, v in action.items() if k != "type"}
+
+            reason = self._pop_reason_for_action()
+            suffix = f"  # {reason}" if reason else ""
             if self.print_steps:
-                print(f"Computer call: {action_type}({action_args})")
+                print(f"Computer call: {action_type}({action_args}){suffix}")
 
             method = getattr(self.computer, action_type)
             method(**action_args)
