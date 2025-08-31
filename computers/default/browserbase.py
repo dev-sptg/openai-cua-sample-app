@@ -176,12 +176,12 @@ class BrowserbaseBrowser(BasePlaywrightComputer):
                 f"Session completed. View replay at https://browserbase.com/sessions/{self.session.id}"
             )
 
-    def screenshot(self) -> dict:
+    def screenshot(self) -> str:
         """
         Capture a screenshot of the current viewport using CDP.
 
         Returns:
-            dict: An `input_image` item containing a data URL.
+            str: A base64 encoded string of the screenshot.
         """
         try:
             # Get CDP session from the page
@@ -192,8 +192,7 @@ class BrowserbaseBrowser(BasePlaywrightComputer):
                 "Page.captureScreenshot", {"format": "png", "fromSurface": True}
             )
 
-            b64 = result["data"]
-            return {"type": "input_image", "image_url": f"data:image/png;base64,{b64}"}
+            return result["data"]
         except PlaywrightError as error:
             print(
                 f"CDP screenshot failed, falling back to standard screenshot: {error}"

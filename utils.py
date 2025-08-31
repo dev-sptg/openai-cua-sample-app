@@ -56,68 +56,40 @@ def sanitize_message(msg: dict) -> dict:
                 new_output["image_base64"] = "[omitted]"
             sanitized["output"] = new_output
             return sanitized
-    if msg.get("type") == "input_image":
-        sanitized = msg.copy()
-        if "image_url" in sanitized:
-            sanitized["image_url"] = "[omitted]"
-        if "image_base64" in sanitized:
-            sanitized["image_base64"] = "[omitted]"
-        return sanitized
     return msg
 
 
 # Output-only item types that must never be sent back in the next request.
-_MODEL_ONLY = {"reasoning", "output_text"}
+MODEL_ONLY_TYPES = {"reasoning", "output_text"}
 
 
 def strip_model_only_items(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """Remove model-only items so we never send them back in `input`."""
-    out: List[Dict[str, Any]] = []
+    clean: List[Dict[str, Any]] = []
     for it in items:
         if not isinstance(it, dict):
             continue
-        if it.get("type") in _MODEL_ONLY:
+        t = it.get("type")
+        if t in MODEL_ONLY_TYPES:
             continue
-        out.append(it)
-    return out
-
-
-def normalize_image_items(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    """
-    Ensure every input_image has exactly one of image_url or file_id.
-    Drop malformed ones; fix common 'output' wrapping if possible.
-    """
-    fixed: List[Dict[str, Any]] = []
-    for it in items:
-        if not isinstance(it, dict):
-            continue
-        if it.get("type") != "input_image":
-            fixed.append(it)
-            continue
-
-        if "image_url" in it or "file_id" in it:
-            fixed.append(it)
-            continue
-
-        out = it.get("output")
-        if isinstance(out, dict) and ("image_url" in out or "file_id" in out):
-            if "image_url" in out:
-                fixed.append({"type": "input_image", "image_url": out["image_url"]})
-            else:
-                fixed.append({"type": "input_image", "file_id": out["file_id"]})
-            continue
-
-        # drop malformed image
-        # optionally, could log here
-
-    return fixed
+        clean.append(it)
+    return clean
 
 
 def coerce_input_items(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    base = [it for it in items if isinstance(it, dict)]
-    base = strip_model_only_items(base)
-    base = normalize_image_items(base)
-    return base
+    """Prepare messages for the API request.
+
+    Drops non-dict items, filters out model-only item types and otherwise keeps
+    the messages unchanged so that fields like image_base64 remain intact for
+    the model to consume.
+    """
+
+    out: List[Dict[str, Any]] = []
+    for it in items:
+        if it is None or not isinstance(it, dict):
+            continue
+        out.append(it)
+    return strip_model_only_items(out)
 
 
 def is_error_response(resp: dict) -> bool:

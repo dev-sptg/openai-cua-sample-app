@@ -24,7 +24,7 @@ def handle_item(item, computer: Computer):
         # give our computer environment action to perform
         getattr(computer, action_type)(**action_args)
 
-        screenshot_item = computer.screenshot()
+        screenshot_base64 = computer.screenshot()
 
         pending_checks = item.get("pending_safety_checks", [])
         for check in pending_checks:
@@ -36,7 +36,12 @@ def handle_item(item, computer: Computer):
             "type": "computer_call_output",
             "call_id": item["call_id"],
             "acknowledged_safety_checks": pending_checks,
-            "output": {"screenshot": True},
+            "output": {
+                "type": "input_image",
+                # Provide the screenshot directly as base64 so the model can
+                # reconstruct the image without relying on an external URL.
+                "image_base64": screenshot_base64,
+            },
         }
 
         # additional URL safety checks for browser environments
@@ -45,7 +50,7 @@ def handle_item(item, computer: Computer):
             call_output["output"]["current_url"] = current_url
             check_blocklisted_url(current_url)
 
-        return [call_output, screenshot_item]
+        return [call_output]
 
     return []
 
