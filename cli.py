@@ -5,6 +5,13 @@ from computers.default import *
 from computers import computers_config
 
 
+def acknowledge_safety_check_callback(message: str) -> bool:
+    response = input(
+        f"Safety Check Warning: {message}\nDo you want to acknowledge and proceed? (y/n): "
+    ).lower()
+    return response.lower().strip() == "y"
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Select a computer environment from the available options."
@@ -43,6 +50,7 @@ def main():
     with ComputerClass() as computer:
         agent = Agent(
             computer=computer,
+            acknowledge_safety_check_callback=acknowledge_safety_check_callback,
         )
         items = []
 
