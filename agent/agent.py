@@ -63,28 +63,7 @@ class Agent:
 
             if hasattr(self.computer, name):  # if function exists on computer, call it
                 method = getattr(self.computer, name)
-                result = method(**args)
-
-                if name == "screenshot" and isinstance(result, dict):
-                    if self.show_images:
-                        url = result.get("image_url", "")
-                        if url.startswith("data:image"):
-                            show_image(url.split(",", 1)[1])
-
-                    output = {}
-                    if "image_url" in result:
-                        output["image_url"] = result["image_url"]
-                    if "file_id" in result:
-                        output["file_id"] = result["file_id"]
-
-                    return [
-                        {
-                            "type": "function_call_output",
-                            "call_id": item["call_id"],
-                            "output": output,
-                        }
-                    ]
-
+                method(**args)
             return [
                 {
                     "type": "function_call_output",
