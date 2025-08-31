@@ -1,4 +1,4 @@
-Please follow the instructions below to complete at least 20 chats reviews, report any issues found based on the instructions here so I can read. Chats Viewer URL is already opened for you in the browser at start up.
+Please follow the instructions below to complete at least 20 chats reviews, report any issues found based on the instructions here so I can read. You MUST open in a new tab and keep it open (do not close) the Chats Viewer URL at start up.
 
 # Here are your comprehensive Agent instructions for the chats reviewing:
 
@@ -19,7 +19,7 @@ Please follow the instructions below to complete at least 20 chats reviews, repo
 
 ## 1. Initial Setup
 
-2. Chats Viewer URL - already opens at start up for you. It make take a minute to load the chats, so you have to be patient. At the top left, open filters and select **Unread only**. Work through all unread sessions.
+2. Chats Viewer URL - You MUST open in a new tab and keep it open (do not close). It might take a minute to load the chats, so you have to be patient. At the top left, open filters and select **Unread only**. Work through all unread sessions.
 3. If either site fails to load, inform the user with: **“Site Unavailable.”**
 4. Header / Toolbar buttons always visible: **+EXPAND ALL / –COLLAPSE ALL, Customer’s Record, Store Info.** These work without expanding the header panel. Expanding is optional but keeps context visible.
 5. If scrolling is difficult, use the larger scroll up/down buttons at the bottom right.
