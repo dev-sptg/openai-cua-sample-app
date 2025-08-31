@@ -87,9 +87,9 @@ class DockerComputer:
             "utf-8", errors="ignore"
         )
 
-    def screenshot(self) -> dict:
+    def screenshot(self) -> str:
         """
-        Takes a screenshot with ImageMagick (import), returning an `input_image` item.
+        Takes a screenshot with ImageMagick (import), returning base64-encoded PNG.
         Requires 'import'.
         """
         # cmd = (
@@ -102,8 +102,7 @@ class DockerComputer:
             "import -window root png:- | base64 -w 0"
         )
 
-        b64 = self._exec(cmd)
-        return {"type": "input_image", "image_url": f"data:image/png;base64,{b64}"}
+        return self._exec(cmd)
 
     def click(self, x: int, y: int, button: str = "left") -> None:
         button_map = {"left": 1, "middle": 2, "right": 3}
