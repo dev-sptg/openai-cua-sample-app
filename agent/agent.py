@@ -5,9 +5,6 @@ from utils import (
     pp,
     sanitize_message,
     check_blocklisted_url,
-    coerce_input_items,
-    is_error_response,
-    summarize_error,
 )
 import json
 from typing import Callable
@@ -124,35 +121,22 @@ class Agent:
 
         # keep looping until we get a final response
         while new_items[-1].get("role") != "assistant" if new_items else True:
-            sanitized_items = coerce_input_items(input_items + new_items)
-            self.debug_print([sanitize_message(msg) for msg in sanitized_items])
+            self.debug_print([sanitize_message(msg) for msg in input_items + new_items])
 
-            try:
-                response = create_response(
-                    model=self.model,
-                    input=sanitized_items,
-                    tools=self.tools,
-                    truncation="auto",
-                )
-            except Exception as e:
-                if self.debug:
-                    print("API call failed:", repr(e))
-                raise
-
+            response = create_response(
+                model=self.model,
+                input=input_items + new_items,
+                tools=self.tools,
+                truncation="auto",
+            )
             self.debug_print(response)
 
-            if is_error_response(response):
-                msg = summarize_error(response)
-                raise ValueError(f"Model response error: {msg}")
-
-            if "output" not in response:
-                if self.debug:
-                    print("Unexpected response payload:", response)
+            if "output" not in response and self.debug:
+                print(response)
                 raise ValueError("No output from model")
-
-            response_items = response["output"]
-            new_items += response_items
-            for item in response_items:
-                new_items += self.handle_item(item)
+            else:
+                new_items += response["output"]
+                for item in response["output"]:
+                    new_items += self.handle_item(item)
 
         return new_items
