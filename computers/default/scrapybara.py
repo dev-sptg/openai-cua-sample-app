@@ -78,8 +78,9 @@ class ScrapybaraBrowser:
     def get_current_url(self) -> str:
         return self.instance.get_current_url().current_url
 
-    def screenshot(self) -> str:
-        return self.instance.screenshot().base_64_image
+    def screenshot(self) -> dict:
+        b64 = self.instance.screenshot().base_64_image
+        return {"type": "input_image", "image_url": f"data:image/png;base64,{b64}"}
 
     def click(self, x: int, y: int, button: str = "left") -> None:
         button = "middle" if button == "wheel" else button
@@ -164,8 +165,9 @@ class ScrapybaraUbuntu:
         self.instance.stop()
         print("Scrapybara Ubuntu instance stopped ₍ᐢ-(ｪ)-ᐢ₎")
 
-    def screenshot(self) -> str:
-        return self.instance.screenshot().base_64_image
+    def screenshot(self) -> dict:
+        b64 = self.instance.screenshot().base_64_image
+        return {"type": "input_image", "image_url": f"data:image/png;base64,{b64}"}
 
     def click(self, x: int, y: int, button: str = "left") -> None:
         button = "middle" if button == "wheel" else button

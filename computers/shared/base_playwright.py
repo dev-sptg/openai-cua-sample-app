@@ -4,6 +4,11 @@ from typing import List, Dict, Literal
 from playwright.sync_api import sync_playwright, Browser, Page
 from utils import check_blocklisted_url
 
+
+def _make_input_image_from_png(png_bytes: bytes) -> dict:
+    b64 = base64.b64encode(png_bytes).decode("ascii")
+    return {"type": "input_image", "image_url": f"data:image/png;base64,{b64}"}
+
 # Optional: key mapping if your model uses "CUA" style keys
 CUA_KEY_TO_PLAYWRIGHT_KEY = {
     "/": "Divide",
@@ -85,10 +90,10 @@ class BasePlaywrightComputer:
         return self._page.url
 
     # --- Common "Computer" actions ---
-    def screenshot(self) -> str:
+    def screenshot(self) -> dict:
         """Capture only the viewport (not full_page)."""
         png_bytes = self._page.screenshot(full_page=False)
-        return base64.b64encode(png_bytes).decode("utf-8")
+        return _make_input_image_from_png(png_bytes)
 
     def click(self, x: int, y: int, button: str = "left") -> None:
         match button:
