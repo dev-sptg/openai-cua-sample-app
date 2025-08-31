@@ -1,6 +1,11 @@
+from collections import deque
+
 from computers import Computer
 from computers import LocalPlaywrightComputer
 from utils import create_response, check_blocklisted_url
+
+# Buffer of reasoning summaries to attach to the next action(s)
+_reason_queue = deque(maxlen=8)
 
 
 def acknowledge_safety_check_callback(message: str) -> bool:
@@ -10,16 +15,64 @@ def acknowledge_safety_check_callback(message: str) -> bool:
     return response.strip() == "y"
 
 
+def _print_reasoning(item: dict) -> None:
+    """Pretty-print the model's reasoning summary (if present)."""
+    # item looks like:
+    # {"type":"reasoning","id":"rs_...","summary":[{"type":"summary_text","text":"..."}], ...}
+    summary = item.get("summary") or []
+    texts = [s.get("text") for s in summary if isinstance(s, dict) and s.get("type") == "summary_text"]
+    if texts:
+        print(f"Reasoning: {texts[0]}")
+    else:
+        # fallback: if future structures change
+        print(f":Reasoning: {item.get('id','(no-id)')}")
+
+
+def _push_reasoning(item: dict) -> None:
+    """Extract and buffer the model's reasoning summary for later printing."""
+    summary = item.get("summary") or []
+    texts = [
+        s.get("text")
+        for s in summary
+        if isinstance(s, dict) and s.get("type") == "summary_text" and s.get("text")
+    ]
+    if texts:
+        reason = texts[0].strip()
+        print(f"[Reasoning] {reason}")
+        _reason_queue.append(reason)
+    else:
+        # fallback (future-proof): still expose there *was* reasoning
+        rid = item.get("id", "(no-id)")
+        print(f"[Reasoning] {rid}")
+        _reason_queue.append(f"(reasoning id {rid})")
+
+
+def _pop_reason_for_action() -> str:
+    """Return the most recent reasoning (if any) to annotate the next action."""
+    if _reason_queue:
+        return _reason_queue.popleft()
+    return ""
+
+
 def handle_item(item, computer: Computer):
     """Handle each item; may cause a computer action + screenshot."""
     if item["type"] == "message":  # print messages
         print(item["content"][0]["text"])
 
+    if item["type"] == "reasoning":
+        # Print the model's short plan/intent for the next action
+        _push_reasoning(item)
+        return []
+
     if item["type"] == "computer_call":  # perform computer actions
         action = item["action"]
         action_type = action["type"]
         action_args = {k: v for k, v in action.items() if k != "type"}
-        print(f"{action_type}({action_args})")
+
+        # annotate the action with the most recent reasoning (if any)
+        reason = _pop_reason_for_action()
+        suffix = f"  # {reason}" if reason else ""
+        print(f"{action_type}({action_args}){suffix}")
 
         # give our computer environment action to perform
         getattr(computer, action_type)(**action_args)
@@ -80,7 +133,7 @@ def main():
                 )
 
                 if "output" not in response:
-                    print(response)
+                    print(f"Response: {response}")
                     raise ValueError("No output from model")
 
                 items += response["output"]

@@ -41,7 +41,7 @@ class ScrapybaraBrowser:
         return "browser"
 
     def get_dimensions(self):
-        return (1024, 768)
+        return (1366, 1024)
 
     def __init__(self):
         self.client = Scrapybara(api_key=os.getenv("SCRAPYBARA_API_KEY"))
@@ -141,7 +141,7 @@ class ScrapybaraUbuntu:
         return "linux"
 
     def get_dimensions(self):
-        return (1024, 768)
+        return (1366, 1024)
 
     def __init__(self):
         self.client = Scrapybara(api_key=os.getenv("SCRAPYBARA_API_KEY"))

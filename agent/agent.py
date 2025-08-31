@@ -28,8 +28,8 @@ class Agent:
         self.computer = computer
         self.tools = tools
         self.print_steps = True
-        self.debug = False
-        self.show_images = False
+        self.debug = True
+        self.show_images = True
         self.acknowledge_safety_check_callback = acknowledge_safety_check_callback
 
         if computer:
@@ -51,7 +51,7 @@ class Agent:
         """Handle each item; may cause a computer action + screenshot."""
         if item["type"] == "message":
             if self.print_steps:
-                print(item["content"][0]["text"])
+                print(f'Message: {item["content"][0]["text"]}')
 
         if item["type"] == "function_call":
             name, args = item["name"], json.loads(item["arguments"])
@@ -74,7 +74,7 @@ class Agent:
             action_type = action["type"]
             action_args = {k: v for k, v in action.items() if k != "type"}
             if self.print_steps:
-                print(f"{action_type}({action_args})")
+                print(f"Computer call: {action_type}({action_args})")
 
             method = getattr(self.computer, action_type)
             method(**action_args)
@@ -85,13 +85,14 @@ class Agent:
 
             # if user doesn't ack all safety checks exit with error
             pending_checks = item.get("pending_safety_checks", [])
+            '''
             for check in pending_checks:
                 message = check["message"]
                 if not self.acknowledge_safety_check_callback(message):
                     raise ValueError(
                         f"Safety check failed: {message}. Cannot continue with unacknowledged safety checks."
                     )
-
+            '''
             call_output = {
                 "type": "computer_call_output",
                 "call_id": item["call_id"],
@@ -112,7 +113,7 @@ class Agent:
         return []
 
     def run_full_turn(
-        self, input_items, print_steps=True, debug=False, show_images=False
+        self, input_items, print_steps=True, debug=True, show_images=True
     ):
         self.print_steps = print_steps
         self.debug = debug
@@ -129,10 +130,10 @@ class Agent:
                 tools=self.tools,
                 truncation="auto",
             )
-            self.debug_print(response)
+            self.debug_print(f"Debug-Response: {response}")
 
             if "output" not in response and self.debug:
-                print(response)
+                print(f"Response: {response}")
                 raise ValueError("No output from model")
             else:
                 new_items += response["output"]

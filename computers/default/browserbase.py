@@ -23,8 +23,8 @@ class BrowserbaseBrowser(BasePlaywrightComputer):
 
     def __init__(
         self,
-        width: int = 1024,
-        height: int = 768,
+        width: int = 1366,
+        height: int = 1024,
         region: str = "us-west-2",
         proxy: bool = False,
         virtual_mouse: bool = True,
@@ -34,8 +34,8 @@ class BrowserbaseBrowser(BasePlaywrightComputer):
         Initialize the Browserbase instance. Additional configuration options for features such as persistent cookies, ad blockers, file downloads and more can be found in the Browserbase API documentation: https://docs.browserbase.com/reference/api/create-a-session
 
         Args:
-            width (int): The width of the browser viewport. Default is 1024.
-            height (int): The height of the browser viewport. Default is 768.
+            width (int): The width of the browser viewport. Default is 1366.
+            height (int): The height of the browser viewport. Default is 1024.
             region (str): The region for the Browserbase session. Default is "us-west-2". Pick a region close to you for better performance. https://docs.browserbase.com/guides/multi-region
             proxy (bool): Whether to use a proxy for the session. Default is False. Turn on proxies if you're browsing is frequently interrupted. https://docs.browserbase.com/features/proxies
             virtual_mouse (bool): Whether to enable the virtual mouse cursor. Default is True.

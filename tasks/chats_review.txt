@@ -1,12 +1,12 @@
-Please follow the instructions below to complete at least 20 chats reviews, report any issues found based on the instructions here so I can read. You MUST open in a new tab and keep it open (do not close) the Chats Viewer URL at start up.
+Please follow the instructions below to complete at least 20 chats reviews, report any issues found based on the instructions here so I can read. You MUST keep the Chat Sessions Viewer URL open and never close (it is opened for you at start up automatically).
 
-# Here are your comprehensive Agent instructions for the chats reviewing:
+# Here are your comprehensive Agent instructions for the chat sessions reviewing:
 
 ---
 
 ## 0. Overview
 
-**Chats Viewer URL (already opened at start up for you in the browser):**
+**Chat Sessions Viewer URL (already opened at start up for you in the browser):**
 [https://chatbot-2hld.onrender.com/sessions](https://chatbot-2hld.onrender.com/sessions)
 
 **Primary Goal**
@@ -25,6 +25,7 @@ Please follow the instructions below to complete at least 20 chats reviews, repo
 5. If scrolling is difficult, use the larger scroll up/down buttons at the bottom right.
 6. Upon clicking a chat in the list the chats list panel will auto collapse. This is normal, so you can focus on this chat until done reviewing. All info about the chat is available in the header section, which could be expanded if needed, or collapsed to save space.
 7. When you are done with reviewing the current chat, click top left button on the side toolbar to open chats panel, click on the next unread chat and continue.
+8. If you ever navigate away from Chat Sessions (for example accidentally opened Businesses or Prompts or Policy Documents, simply open left side menu by clicking burger button at the top right and click Sessions to come back to that page). However you MUST NOT intentionally navigate away from Sessions page and simply better not to click top burger button to prevent that accidental navigation away from happening.
 
 ---
 
