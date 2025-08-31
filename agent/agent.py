@@ -7,7 +7,6 @@ from utils import (
     check_blocklisted_url,
 )
 import json
-from typing import Callable
 
 
 class Agent:
@@ -22,7 +21,6 @@ class Agent:
         model="computer-use-preview",
         computer: Computer = None,
         tools: list[dict] = [],
-        acknowledge_safety_check_callback: Callable = lambda: False,
     ):
         self.model = model
         self.computer = computer
@@ -30,7 +28,6 @@ class Agent:
         self.print_steps = True
         self.debug = False
         self.show_images = False
-        self.acknowledge_safety_check_callback = acknowledge_safety_check_callback
 
         if computer:
             dimensions = computer.get_dimensions()
@@ -83,19 +80,18 @@ class Agent:
             if self.show_images:
                 show_image(screenshot_base64)
 
-            # if user doesn't ack all safety checks exit with error
+            # exit with error if there are pending safety checks
             pending_checks = item.get("pending_safety_checks", [])
-            for check in pending_checks:
-                message = check["message"]
-                if not self.acknowledge_safety_check_callback(message):
-                    raise ValueError(
-                        f"Safety check failed: {message}. Cannot continue with unacknowledged safety checks."
-                    )
+            if pending_checks:
+                message = ", ".join(check["message"] for check in pending_checks)
+                raise ValueError(
+                    f"Safety check failed: {message}. Cannot continue with unacknowledged safety checks."
+                )
 
             call_output = {
                 "type": "computer_call_output",
                 "call_id": item["call_id"],
-                "acknowledged_safety_checks": pending_checks,
+                "acknowledged_safety_checks": [],
                 "output": {
                     "type": "input_image",
                     "image_url": f"data:image/png;base64,{screenshot_base64}",
