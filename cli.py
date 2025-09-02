@@ -58,6 +58,12 @@ def main():
                 if not args.start_url.startswith("http"):
                     args.start_url = "https://" + args.start_url
                 agent.computer.goto(args.start_url)
+                try:
+                    if hasattr(agent.computer, "ensure_overlay"):
+                        agent.computer.ensure_overlay()
+                        print("[Overlay] ensure_overlay() called")
+                except Exception:
+                    pass
 
             while True:
                 # If a previous Ctrl+C requested stop, don’t prompt again

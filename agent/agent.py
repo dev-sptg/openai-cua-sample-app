@@ -2,6 +2,9 @@ from collections import deque
 import json
 from typing import Callable
 import re
+import inspect
+import os
+from utils import compress_b64_png_to_jpeg_bytes, upload_image_get_file_id
 
 from computers import Computer
 from utils import (
@@ -332,33 +335,103 @@ class Agent:
     """
 
     def __init__(
-        self,
-        model="computer-use-preview",
-        computer: Computer = None,
-        tools: list[dict] = [],
-        acknowledge_safety_check_callback: Callable = lambda *a, **k: True,
+            self,
+            model: str = "computer-use-preview",
+            computer: Computer | None = None,
+            tools: list[dict] | None = None,
+            acknowledge_safety_check_callback: Callable = lambda *a, **k: True,
     ):
         self.model = model
         self.computer = computer
-        self.tools = tools
+        self.tools = tools or []
         self.print_steps = True
         self.debug = True
         self.show_images = True
         self.acknowledge_safety_check_callback = acknowledge_safety_check_callback
         self._reason_queue: deque[str] = deque(maxlen=16)
-        self.request_stop = False  # <-- allows graceful Ctrl+C
-
-        # buffer to print "why" next to the next action
-        self._reason_queue: deque[str] = deque(maxlen=16)
+        self.request_stop = False  # graceful Ctrl+C
 
         if computer:
-            dimensions = computer.get_dimensions()
+            w, h = computer.get_dimensions()
+            # Computer preview tool (required by CUA)
+            self.tools += [{
+                "type": "computer-preview",
+                "display_width": w,
+                "display_height": h,
+                "environment": computer.get_environment(),
+            }]
+
+            # ---------- Function tools (selector-first navigation) ----------
             self.tools += [
                 {
-                    "type": "computer-preview",
-                    "display_width": dimensions[0],
-                    "display_height": dimensions[1],
-                    "environment": computer.get_environment(),
+                    "type": "function",
+                    "name": "wait_for_selector",
+                    "description": "Wait until a CSS selector is visible & stable. Prefer before clicking.",
+                    "parameters": {
+                        "type": "object",
+                        "additionalProperties": False,
+                        "properties": {
+                            "selector": {"type": "string", "description": "CSS selector to wait for"},
+                            "timeout_ms": {"type": "integer", "description": "Timeout in ms (default 4000)"}
+                        },
+                        "required": ["selector"]
+                    }
+                },
+                {
+                    "type": "function",
+                    "name": "click_selector",
+                    "description": "Click an element by CSS selector (center of element).",
+                    "parameters": {
+                        "type": "object",
+                        "additionalProperties": False,
+                        "properties": {
+                            "selector": {"type": "string"},
+                            "timeout_ms": {"type": "integer", "description": "Timeout in ms (default 4000)"}
+                        },
+                        "required": ["selector"]
+                    }
+                },
+                {
+                    "type": "function",
+                    "name": "click_text",
+                    "description": "Click an element by visible text. Use exact=true for exact match.",
+                    "parameters": {
+                        "type": "object",
+                        "additionalProperties": False,
+                        "properties": {
+                            "text": {"type": "string"},
+                            "exact": {"type": "boolean", "description": "Exact match (default false)"},
+                            "timeout_ms": {"type": "integer", "description": "Timeout in ms (default 4000)"}
+                        },
+                        "required": ["text"]
+                    }
+                },
+                {
+                    "type": "function",
+                    "name": "type_selector",
+                    "description": "Focus an input by selector and type text.",
+                    "parameters": {
+                        "type": "object",
+                        "additionalProperties": False,
+                        "properties": {
+                            "selector": {"type": "string"},
+                            "text": {"type": "string"},
+                            "clear": {"type": "boolean", "description": "Clear first (default true)"},
+                            "delay_ms": {"type": "integer", "description": "Key delay per char (default 0)"},
+                            "timeout_ms": {"type": "integer", "description": "Timeout in ms (default 4000)"}
+                        },
+                        "required": ["selector", "text"]
+                    }
+                },
+                {
+                    "type": "function",
+                    "name": "reload",
+                    "description": "Reload the page reliably (use instead of keyboard shortcuts).",
+                    "parameters": {
+                        "type": "object",
+                        "additionalProperties": False,
+                        "properties": {}
+                    }
                 },
             ]
 
@@ -421,11 +494,28 @@ class Agent:
         return "(no reasoning provided)"
 
     def _push_reasoning(self, item: dict) -> None:
-        reason = self._extract_reasoning_text(item)
-        '''
+        reason = (self._extract_reasoning_text(item) or "").strip()
+
+        # Optional: avoid printing noisy placeholders
+        if reason.lower() in {"", "(no reasoning provided)"}:
+            # still queue an empty marker if you want the next action comment to omit
+            self._reason_queue.append("")
+            return
+
+        # Debounce overlay updates (set only if changed)
+        if hasattr(self.computer, "set_overlay_text"):
+            try:
+                # Truncate to keep the bubble readable (adjust length as you like)
+                short = reason if len(reason) <= 280 else (reason[:277] + "…")
+                # If your BasePlaywrightComputer tracks last text, you can skip if unchanged.
+                self.computer.set_overlay_text(short)
+            except Exception:
+                pass
+
+        # Optional: print steps if you want console visibility
         if self.print_steps:
             print(f"[Reasoning] {reason}")
-        '''
+
         self._reason_queue.append(reason)
 
     def _pop_reason_for_action(self) -> str:
@@ -447,21 +537,29 @@ class Agent:
             return []
 
         if itype == "function_call":
-            name, args = item["name"], json.loads(item.get("arguments") or "{}")
+            name, raw_args = item["name"], json.loads(item.get("arguments") or "{}")
             if self.print_steps:
-                print(f"{name}({args})")
+                print(f"{name}({raw_args})")
+
+            status = "skipped"
             if hasattr(self.computer, name):
-                getattr(self.computer, name)(**args)
-            return [
-                {
-                    "type": "function_call_output",
-                    "call_id": item["call_id"],
-                    "output": "success",
-                }
-            ]
+                method = getattr(self.computer, name)
+                try:
+                    # only pass parameters the method actually accepts
+                    sig = inspect.signature(method)
+                    kwargs = {k: v for k, v in raw_args.items() if k in sig.parameters}
+                    method(**kwargs)
+                    status = "success"
+                except Exception as e:
+                    status = f"error: {e!r}"
+
+            return [{
+                "type": "function_call_output",
+                "call_id": item["call_id"],
+                "output": status,
+            }]
 
         if itype == "reasoning":
-            # Print and queue the reasoning, then continue to wait for the call
             self._push_reasoning(item)
             return []
 
@@ -475,29 +573,62 @@ class Agent:
             if self.print_steps:
                 print(f"Computer call: {action_type}({action_args}){suffix}")
 
-            # execute the action
+            # Execute the action
             getattr(self.computer, action_type)(**action_args)
 
-            # screenshot after the action
+            # Screenshot (PNG base64 for stitched MP4); preview if requested
             screenshot_base64 = self.computer.screenshot()
             if self.show_images:
                 show_image(screenshot_base64)
 
-            # (optional) manual safety acks - left disabled per your choice
+            # Build the vision payload once
+            use_inline = os.getenv("VISION_INLINE", "0").lower() in ("1", "true", "yes")
+            img_payload: dict
+            file_id: str | None = None  # define up-front so it's always bound
+
+            try:
+                # Compress PNG → JPEG (smaller for either inline or file upload)
+                jpeg_bytes = compress_b64_png_to_jpeg_bytes(
+                    screenshot_base64, max_w=1280, max_h=960, quality=70
+                )
+
+                if use_inline:
+                    # Inline JPEG data URL (no Files API)
+                    import base64
+                    jpeg_b64 = base64.b64encode(jpeg_bytes).decode("ascii")
+                    img_payload = {"type": "input_image", "image_url": f"data:image/jpeg;base64,{jpeg_b64}"}
+                    if self.debug:
+                        print(f"[Diag] vision=inline, jpeg={len(jpeg_bytes)} bytes")
+                else:
+                    # Upload JPEG and use file_id
+                    file_id = upload_image_get_file_id(jpeg_bytes)
+                    if file_id:
+                        img_payload = {"type": "input_image", "file_id": file_id}
+                        if self.debug:
+                            print(f"[Diag] vision=file_id, jpeg={len(jpeg_bytes)} bytes, file_id={file_id}")
+                    else:
+                        # Fallback to inline PNG if upload failed
+                        img_payload = {"type": "input_image", "image_url": f"data:image/png;base64,{screenshot_base64}"}
+                        if self.debug:
+                            print("[Diag] upload failed; falling back to inline png")
+            except Exception as e:
+                # Last-resort fallback: inline PNG
+                img_payload = {"type": "input_image", "image_url": f"data:image/png;base64,{screenshot_base64}"}
+                if self.debug:
+                    print(f"[Diag] vision fallback to png inline due to: {e!r}")
+
+            # (optional) manual safety acks left disabled per your choice
             pending_checks = item.get("pending_safety_checks", [])
 
-            # return computer_call_output with a valid input_image
+            # Return computer_call_output with the built image payload
             call_output = {
                 "type": "computer_call_output",
                 "call_id": item["call_id"],
                 "acknowledged_safety_checks": pending_checks,
-                "output": {
-                    "type": "input_image",
-                    "image_url": f"data:image/png;base64,{screenshot_base64}",
-                },
+                "output": img_payload,
             }
 
-            # extra URL safety in browser envs
+            # Browser extra: include current URL for guardrails/diagnostics
             if self.computer.get_environment() == "browser":
                 current_url = self.computer.get_current_url()
                 check_blocklisted_url(current_url)
